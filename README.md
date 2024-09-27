@@ -4,21 +4,21 @@
 
 *Open Flux* is a fork of the popular Open Source GitOps Toolkit
 [Flux](https://github.com/fluxcd/flux2). Now, you might be wondering - since
-flux is already open source, why is this
+*Flux* is already open source, why is this
 fork called *Open Flux*? The *Open* in *Open Flux* refers to the architecture
 and ecosystem rather than the distribution of the software.
 
 TLDR; Currently, *Flux* **does not** support adding custom *source types* (or 
-other *actions* that might transform an artifact before handing it over to a
-*deployer*). *Open Flux* rather *transparently* adds this extensibility to
-*Flux*. In that sense, *Open Flux* opens up the *Flux* architecture and 
-ecosystem to custom and community contributed *source types* (and *actions*).
+*transformation types* - operations that might transform an artifact before 
+handing it over to a *deployer*). *Open Flux* rather *transparently* adds this 
+extensibility to *Flux*. In that sense, *Open Flux* opens up the *Flux* 
+architecture and ecosystem to custom and community contributed *source types* 
+(and *transformation types*).
 
-> We used the term *actions* for general operations that consume artifacts (and
-> that also might produce artifacts again). *Flux* also states in their
-> documentation:  
-> "Sources produce an artifact that is consumed by other Flux components to 
-> perform **actions** [...]".
+> **NOTE:** In addition to the concept of **sources** which *produce artifacts* and 
+> **deployers** which *consume artifacts*, we introduced the term 
+> **transformations** to describe general operations that *consume* and 
+> *produce artifacts*.
 
 As a proof-of-concept, we have implemented a simple *custom source* using
 an http file server as source system 
@@ -26,20 +26,39 @@ an http file server as source system
 
 ## What is the goal of the Open Flux project?
 
-For an open source project with such a large and active community of developers,
-we believe that opening up the ecosystem has the potential to add significant 
-value. Therefore, we would love to see this idea to be adopted in the upstream
-[Flux](https://github.com/fluxcd/flux2) project!
+For an open source project with such a large and active community of developers
+such as *Flux*, we believe that opening up the ecosystem has the potential to
+add significant value. Therefore, we would love to see this idea to be adopted
+in the upstream [Flux](https://github.com/fluxcd/flux2) project!
 
-> **NOTE:** While we would of course be absolutely happy to contribute our code, 
-> we are of course not bent on our specific implementation.  
+> **NOTE:** While we would be absolutely happy to contribute our code,
+> we are of course not bent on our specific implementation.
+
+## Library
+
+As mentioned above, the idea of *Open Flux* is to enable community contributions
+to the *Flux* ecosystem. To further support this idea, we provide a [library to
+implement *artifact producers*](https://github.com/openfluxcd/controller-manager) 
+as well as a [library to implement *artifact consumers*](https://github.com/openfluxcd/artifact/tree/main/action).
+So, these libraries can be used to quickly implement custom *source* and 
+*deployment controllers*, or they can even be combined to implement custom 
+*transformation controllers*.
+
+> **NOTE:** Admittedly, both of these libraries are currently still in a quite 
+> prototypical state. Usage examples for the *producer* can be found in our
+> proof-of-concept http source controller 
+> [here](https://github.com/openfluxcd/http-source-controller). Usage examples
+> for the *consumer* can be found in our adjusted 
+> [kustomize](https://github.com/openfluxcd/kustomize-controller) and 
+> [helm](https://github.com/openfluxcd/helm-controller) controllers.
+
 
 ## Explanation
 
 If you find the idea introduced above - an extensible *Flux* ecosystem - 
 interesting (or if you are still wondering what we are even talking about), you 
 can find a rather detailed explanation here. If you are already quite familiar 
-with the current *Flux* architecture, and you are short on time, I suggest you 
+with the current *Flux* architecture, and you are short on time, we suggest you 
 merely skim through the *Flux concepts* section. 
 
 Overall, the explanation below relies heavily on the already existing *Flux*
@@ -54,8 +73,8 @@ the concepts of **sources** and **deployers**.
 
 In the most generic sense, a
 [*source*](https://fluxcd.io/flux/concepts/#sources) is a *custom resource* 
-containing a technology specific access description to the contents of a version
-controlled storage (the currently supported source systems are
+containing a technology specific access description to the contents of a storage
+(the currently supported source systems are
 [git repositories](https://fluxcd.io/flux/components/source/gitrepositories/),
 [oci repositories](https://fluxcd.io/flux/components/source/ocirepositories/),
 [s3 buckets](https://fluxcd.io/flux/components/source/buckets/), and
@@ -71,7 +90,7 @@ technology specific
 [*source controllers*](https://fluxcd.io/flux/components/source/). Thereby,
 these controllers evaluate the access descriptions in regular intervals to
 access the storage to search for and download the latest version of the storage
-content (thus, the latest version of plain manifests, kustomize
+content (thus, currently, the latest version of plain manifests, kustomize
 overlays or helm packages).
 
 As result of a successful reconcilation, the 
@@ -79,9 +98,10 @@ As result of a successful reconcilation, the
 downloaded content as so-called *artifacts*. An 
 [*artifact*](https://fluxcd.io/flux/components/source/gitrepositories/#artifact) 
 is essentially an abstraction describing the downloaded content, especially 
-its version and how it can be acquired (or to be more concrete, an abstraction
-describing the version of some set of kubernetes manifests, kustomize overlays 
-or helm packages and how these can be acquired). 
+its version and an URL based access to the downloaded content in form of a 
+single blob. So currently, an artifact describes the version of some set of 
+kubernetes manifests, kustomize overlays or helm packages and a URL to download 
+an archive blob of those files.
 
 Since all [*source controllers*](https://fluxcd.io/flux/components/source/) 
 uniformly use this *artifact* abstraction to expose the downloaded content, the
@@ -109,7 +129,7 @@ deployment instructions exposed by the *source*.
 Since all [*source controllers*](https://fluxcd.io/flux/components/source/)
 uniformly use this *artifact* abstraction to expose the downloaded content, the
 deployers only have to understand the *artifact* abstraction in order to be able
-to use all the aforementioned types of sources systems. So, the *artifact*
+to use all the aforementioned types of source systems. So, the *artifact*
 abstraction serves as interface between *sources* and *deployers*.
 
 <img src="./assets/source-deployer.png" alt="source-deployer" width="35%" height="35%"/>
@@ -118,18 +138,28 @@ This is a great concept!
 
 ### Expectations
 
-Based on the introduced concept, a software engineer might intuitively draw 2
-conclusions:
+Based on the introduced concept, potentially, the following 3 scenarios seem to
+have useful applications:
 
-1) Additional types of *sources* can be added (as long as they provide
-   *artifacts*).
+1) Additional types of **sources** can be added (as long as they *produce
+   artifacts* that can be consumed by any kind of *deployer*).
 
    <img src="./assets/additional-source-controller.png" alt="additional-source-controller" width="50%" height="50%"/>
 
-2) Additional *actions* can be added (as long as they consume and provide
-   *artifacts*)
+2) Additional types of **deployers** can be added (as long as they *consume 
+   artifacts* produced by any kind of *source*).
+
+   <img src="./assets/additional-deployment-controller.png" alt="additional-deployment-controller" width="50%" height="50%">
+
+3) Additional **transformations** can be added (as long as they *consume 
+   artifacts* produced by any kind of *source* **OR** other *transformation*
+   (= *artifact producers*) and *produce artifacts* that can be consumed by any 
+   kind of *deployer* **OR** other *transformation* (= *artifact consumers*)).
  
-   <img src="./assets/source-operation-deployer.png" alt="source-operation-deployer" width="50%" height="50%" />
+   <img src="./assets/source-operation-deployer.png" alt="source-operation-deployer" width="90%" height="50%" />
+
+Due to the current flux implementation, it is only possible to add additional 
+types of *deployers* (2).
 
 ### Flux Implementation
 
@@ -163,7 +193,14 @@ below.
 <img src="./assets/point-to-point-flux.png" alt="source-operation-deployer" width="50%" height="50%"/>
 
 So in its current form - with the above described implementation and
-architecture - flux is **closed for extension**.
+architecture - flux is **closed for extension** of *sources* and 
+*transformations*.
+
+To enable the flexibility required to add further *sources* and 
+*transformations* as well as *deployers*, it is crucial to provide an 
+architecture in which the *deployment controller* code does not require 
+knowledge about the complete set of potential *sources*.
+
 
 ### Open Flux Implementation
 
@@ -198,58 +235,98 @@ controllers* for corresponding *source custom resources* (instead of writing the
 
 #### Technical Details
 
-To make this work, we had to adjust some parts of the current implementation
-of the *deployment controllers* (so, of the [kustomization controller](https://fluxcd.io/flux/components/kustomize/kustomizations/) 
-and the [helm controller](https://fluxcd.io/flux/components/helm/)). Thereof,
-one adjustment was especially noteworthy. This is described below.
+As mentioned before - an *artifact consumer* (such as a *deployer*) is a
+custom resource that references an *artifact producer* custom resource (such as 
+a [*source*](https://fluxcd.io/flux/concepts/#sources)) and describes additional 
+deployment technology (or transformation) specific information about how and 
+where to apply these instructions.
 
-> **NOTE:** We put all the coding used to make the kustomization controller and the 
-> helm controller work with artifact custom resources into a [package within the
-> artifact repository](https://github.com/openfluxcd/artifact/tree/main/action). 
-> Among other things, this package provides a convenient `Setup()` function that
-> does all the configurations required for a controller such a *deployment
-> controller* (or as mentioned above, a controller doing intermediate 
-> *actions*) such as setting up the correct indizes and watches with the 
-> correct event handlers.  
+So, even though the *artifact consumers* (such as the *deployment controllers*
+for [kustomize](https://fluxcd.io/flux/components/kustomize/kustomizations/) or
+[helm](https://fluxcd.io/flux/components/helm/)) watch the *artifact custom 
+resource*, the *artifact consumers* will still primarily reference the 
+*artifact producer* custom resource (such as the *sources* for [git](https://fluxcd.io/flux/components/source/gitrepositories/)
+or [oci](https://fluxcd.io/flux/components/source/ocirepositories/)) and not
+the *artifact custom resource* maintained by the *artifact producer* (although 
+that is also possible, as shown below). The very existence of the *artifact 
+custom resource* is still supposed to be rather transparent from a user 
+interface perspective (or at least as transparent as the *artifact* was as a 
+status property).
 
-As mentioned before already - a *deployer* is a custom resource that 
-references a [*source*](https://fluxcd.io/flux/concepts/#sources) (and describes
-additional deployment technology specific information about how and where to
-apply these instructions). 
+Consequently, based on the *source reference* within an *artifact consumer* 
+custom resource (such as a 
+[kustomization](https://fluxcd.io/flux/components/kustomize/kustomizations/)), 
+the open flux implementation of the *artifact consumer controllers* (such as the
+[kustomize controller](https://fluxcd.io/flux/components/kustomize/)) has to find 
+the corresponding *artifact custom resource* **WITHOUT** introducing a 
+dependency to the struct type of the *artifact producer* type (such as the 
+*git repository struct type*).
 
-So, even though the adjusted open flux *deployment controllers* watch the 
-*artifact custom resource*, the *deployers* will still primarily reference the 
-*source custom resource* (thus, for example the git repository resource) and not
-the *artifact custom resource* (although that's also possible as shown below).
-The very existence of the *artifact custom resource* is still supposed to be 
-rather transparent from a user interface perspective (or at least as transparent
-as the *artifact* was as a status property).
+To solve this problem, we introduced an *owner reference index* mapping
+*artifact producers* (such as the 
+[git source](https://fluxcd.io/flux/components/source/gitrepositories/)) to their
+maintained *artifacts*.
 
-Consequently, based on a *source custom resource* (that the *deployment
-controller* can get using the *source reference* within the *deployer custom 
-resource*), the open flux implementation of the *deployment controller* has to
-find the corresponding *artifact custom resource* **WITHOUT** introducing a
-dependency to the struct type of the *source custom resource* type. 
-
-To solve this problem, we introduced an *owner reference index* mapping 
-*sources* (or in general, *artifact owners*) to *artifacts*.
-
-<img src="./assets/artifact-owner-index.png" alt="artifact-owner-index" width="30%" height="30%"/>
+<img src="./assets/artifact-owner-index.png" alt="artifact-owner-index" width="40%" height="40%"/>
 
 > **NOTE:** The code responsible for setting up that index can be found in the
-> setup function of our action controller library 
+> setup function of our *artifact producer* controller library
 > [here](https://github.com/openfluxcd/artifact/blob/445fc08739f2a9c7f1b0bfd6f7ec7fc5a6479068/action/action.go#L118).
 
 The index key attributes are the attributes contained in the *source reference*
-of a *deployer*.
+of an *artifact consumer* custom resource. Within the reconcile method, the 
+*artifact consumer controller* obviously has access to this *artifact consumer* 
+object containing the *source reference* (as this is the object being reconciled 
+by this controller). Thus, the *artifact consumer controller* can use the 
+*source reference* of the currently reconciled *artifact consumer* object to get 
+the corresponding *artifact* object from the index.
 
 The *artifact* itself is also added as a key to the *owner reference index*.
-We thought that *deployers* should also be able to reference an *artifact*
-directly within the *source reference*. Thus, this allows to consult the index
-using the *source reference* independent of whether the *source reference*
-actually references a *source* object or the *artifact* itself.
+We thought that *artifact consumers* should also be able to reference an 
+*artifact* directly within the *source reference*. Thus, this allows to consult 
+the index using the *source reference* independent of whether the *source 
+reference* actually references a *source* object or the *artifact* itself.
+This enables to have manually maintained artifacts (for example, for testing 
+purposes).
+
+> **NOTE:** As already mentioned at the top of this page, we put all the coding
+> required to implement such *artifact consumers* (such as the 
+> [kustomize](https://fluxcd.io/flux/components/kustomize/) or the 
+> [helm](https://fluxcd.io/flux/components/helm/)) into a library. Currently,
+> that library is available as a [package within the artifact repository](https://github.com/openfluxcd/artifact/tree/main/action).
+> Among other things, this library provides a convenient `Setup()` function that
+> does all the configurations required for a controller such a *deployment
+> controller* (or as mentioned above, a *transformation controller*) such as
+> setting up the correct indizes and watches with the correct event handlers.
+> 
+> Furthermore, we also put all the coding required to implement *artifact
+> producers* (such as the 
+> [git repository controller](https://fluxcd.io/flux/components/source/gitrepositories/)
+> or our custom [http source controller](https://github.com/openfluxcd/http-source-controller))
+> into a library. Currently, that library is available 
+> [here](https://github.com/openfluxcd/controller-manager).
+> Among other things, this repository provides convenient functions to set up
+> a controller manager with an artifact server that does all the maintenance of
+> the downloaded content blobs and the creation of the *artifact* custom
+> resource.
+
+We used our library to adjust the current flux 
+[kustomize](https://fluxcd.io/flux/components/kustomize/) 
+and [helm controllers](https://fluxcd.io/flux/components/helm/). But as we want 
+to keep open flux in sync with flux, we decided to keep the changes 
+to a minimum. Thus, while we adjusted the 
+[kustomize](https://github.com/openfluxcd/kustomize-controller) and the 
+[helm](https://github.com/openfluxcd/helm-controller) controllers to work with 
+the *artifact custom resource*, we decided to keep the point-to-point connection 
+to the existing source types for now. Otherwise, we would have had to adjust 
+each source controller to produce an *artifact custom resource* instead of 
+writing the *artifact* into the status.
+**But this behaviour is hidden behind a *setup* function and therefore, 
+completely transparent to the user of the library. Thus, once the existing
+flux *source types* produce artifacts, we can switch to uniformly watching
+artifacts without impacting users of the library.**
 
 ## Conclusion
 
 The open flux project *transparently* enhances flux with the ability to be 
-extended with arbitrary *source* types and additional *actions*.
+extended with arbitrary *source* types and additional *transformation* types.
