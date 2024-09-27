@@ -132,7 +132,7 @@ deployers only have to understand the *artifact* abstraction in order to be able
 to use all the aforementioned types of source systems. So, the *artifact*
 abstraction serves as interface between *sources* and *deployers*.
 
-<img src="./assets/source-deployer.png" alt="source-deployer" width="35%" height="35%"/>
+<img src="../assets/source-deployer.png" alt="source-deployer" width="35%" height="35%"/>
 
 This is a great concept!
 
@@ -144,19 +144,19 @@ have useful applications:
 1) Additional types of **sources** can be added (as long as they *produce
    artifacts* that can be consumed by any kind of *deployer*).
 
-   <img src="./assets/additional-source-controller.png" alt="additional-source-controller" width="50%" height="50%"/>
+   <img src="../assets/additional-source-controller.png" alt="additional-source-controller" width="50%" height="50%"/>
 
 2) Additional types of **deployers** can be added (as long as they *consume 
    artifacts* produced by any kind of *source*).
 
-   <img src="./assets/additional-deployment-controller.png" alt="additional-deployment-controller" width="50%" height="50%">
+   <img src="../assets/additional-deployment-controller.png" alt="additional-deployment-controller" width="50%" height="50%">
 
 3) Additional **transformations** can be added (as long as they *consume 
    artifacts* produced by any kind of *source* **OR** other *transformation*
    (= *artifact producers*) and *produce artifacts* that can be consumed by any 
    kind of *deployer* **OR** other *transformation* (= *artifact consumers*)).
  
-   <img src="./assets/source-operation-deployer.png" alt="source-operation-deployer" width="90%" height="50%" />
+   <img src="../assets/source-operation-deployer.png" alt="source-operation-deployer" width="90%" height="50%" />
 
 Due to the current flux implementation, it is only possible to add additional 
 types of *deployers* (2).
@@ -190,7 +190,7 @@ dependency to each *source* type is required.
 This leads to an overall architecture with point-to-point connections as shown 
 below.
 
-<img src="./assets/point-to-point-flux.png" alt="source-operation-deployer" width="50%" height="50%"/>
+<img src="../assets/point-to-point-flux.png" alt="source-operation-deployer" width="50%" height="50%"/>
 
 So in its current form - with the above described implementation and
 architecture - flux is **closed for extension** of *sources* and 
@@ -208,13 +208,13 @@ To open flux's implementation and architecture for extension, open flux moves
 the *artifact* abstraction from the status of each *source custom resource* to
 an independent *custom resource* called *artifact*.
 
-<img src="./assets/flux-to-openflux.png" alt="flux-to-openflux" width="50%" height="50%"/>
+<img src="../assets/flux-to-openflux.png" alt="flux-to-openflux" width="50%" height="50%"/>
 
 Thereby, open flux is able to resolve the previously shown point-to-point
 connection between the *sources* and the *deployment controllers* (or in 
 general, *artifact consumers*).
 
-<img src="./assets/artifact-as-common-interface.png" alt="artifact-as-common-interface" width="50%" height="50%"/>
+<img src="../assets/artifact-as-common-interface.png" alt="artifact-as-common-interface" width="50%" height="50%"/>
 
 > **NOTE:** If you happen to look at the code within the open flux repositories, you
 > might notice that this is not actually how it currently looks like. We want to
@@ -267,7 +267,7 @@ To solve this problem, we introduced an *owner reference index* mapping
 [git source](https://fluxcd.io/flux/components/source/gitrepositories/)) to their
 maintained *artifacts*.
 
-<img src="./assets/artifact-owner-index.png" alt="artifact-owner-index" width="40%" height="40%"/>
+<img src="../assets/artifact-owner-index.png" alt="artifact-owner-index" width="40%" height="40%"/>
 
 > **NOTE:** The code responsible for setting up that index can be found in the
 > setup function of our *artifact producer* controller library
